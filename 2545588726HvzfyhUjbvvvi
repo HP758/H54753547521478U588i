@@ -12674,13 +12674,46 @@ end
 end
 
 function au.SetBackgroundImage(v,x)
-au.UIElements.Main.Background.ImageLabel.Image=x
+if not at or not at.WindUI or not at.WindUI.SetBackgroundImage then
+	return nil
 end
+
+local spec=v
+local options=type(x)=="table" and x or {}
+
+if not options.Target and au.UIElements and au.UIElements.Main then
+	local background=au.UIElements.Main:FindFirstChild("Background")
+	options.Target=background or au.UIElements.Main
+end
+
+if options.Transparency==nil then
+	options.Transparency=au.BackgroundImageTransparency or 0
+end
+if options.ImageTransparency==nil then
+	options.ImageTransparency=options.Transparency
+end
+
+return at.WindUI.SetBackgroundImage(spec,options)
+end
+
 function au.SetBackgroundImageTransparency(v,x)
-if g and g:IsA"ImageLabel"then
-g.ImageTransparency=math.floor(x*10+0.5)/10
+local z=math.clamp(math.floor((tonumber(x) or 0)*10+0.5)/10,0,1)
+au.BackgroundImageTransparency=z
+
+if au.UIElements and au.UIElements.Main and au.UIElements.Main:FindFirstChild("Background") then
+	local background=au.UIElements.Main.Background
+	local image=background:FindFirstChild("ImageLabel")
+	if image and image:IsA("ImageLabel") then
+		image.ImageTransparency=z
+	end
 end
-au.BackgroundImageTransparency=math.floor(x*10+0.5)/10
+
+if at and at.WindUI and at.WindUI._BackgroundState and at.WindUI._BackgroundState.Object then
+	local obj=at.WindUI._BackgroundState.Object
+	if obj:IsA("ImageLabel") then
+		obj.ImageTransparency=z
+	end
+end
 end
 
 function au.SetBackgroundTransparency(v,x)
@@ -12816,11 +12849,11 @@ function au.PlayBootAnimation(z,A)
 		local lighting=game:GetService("Lighting")
 		local tweenService=game:GetService("TweenService")
 
-		local duration=tonumber(A.Duration or A.TotalDuration or 1.6) or 1.6
+		local duration=math.clamp(tonumber(A.Duration or A.TotalDuration or 0.9) or 0.9,0.55,1.2)
 		local titleText=tostring(A.Title or au.Title or at.WindUI.Version or "WindUI")
 		local subtitleText=tostring(A.Subtitle or A.ScriptName or A.Name or "")
-		local overlayTransparency=tonumber(A.OverlayTransparency or 0.08) or 0.08
-		local blurTarget=tonumber(A.BlurSize or 18) or 18
+		local overlayTransparency=tonumber(A.OverlayTransparency or 0.1) or 0.1
+		local blurTarget=tonumber(A.BlurSize or 12) or 12
 		local showBlur=A.Blur~=false
 		local color=A.AccentColor or Color3.new(1,1,1)
 
@@ -12850,50 +12883,38 @@ function au.PlayBootAnimation(z,A)
 			blur.Parent=lighting
 		end
 
-		local center=Instance.new("Frame")
-		center.Name="Center"
-		center.AnchorPoint=Vector2.new(0.5,0.5)
-		center.Position=UDim2.fromScale(0.5,0.5)
-		center.Size=UDim2.fromOffset(14,14)
-		center.BackgroundColor3=color
-		center.BackgroundTransparency=0.08
-		center.BorderSizePixel=0
-		center.ZIndex=200001
-		center.Parent=boot
+		local dot=Instance.new("Frame")
+		dot.Name="Dot"
+		dot.AnchorPoint=Vector2.new(0.5,0.5)
+		dot.Position=UDim2.fromScale(0.5,0.5)
+		dot.Size=UDim2.fromOffset(8,8)
+		dot.BackgroundColor3=color
+		dot.BackgroundTransparency=0.02
+		dot.BorderSizePixel=0
+		dot.ZIndex=200001
+		dot.Parent=boot
 
-		local centerCorner=Instance.new("UICorner")
-		centerCorner.CornerRadius=UDim.new(1,0)
-		centerCorner.Parent=center
+		local dotCorner=Instance.new("UICorner")
+		dotCorner.CornerRadius=UDim.new(1,0)
+		dotCorner.Parent=dot
 
-		local centerStroke=Instance.new("UIStroke")
-		centerStroke.Thickness=1
-		centerStroke.Transparency=0.6
-		centerStroke.Color=Color3.new(1,1,1)
-		centerStroke.Parent=center
-
-		local centerGradient=Instance.new("UIGradient")
-		centerGradient.Rotation=45
-		centerGradient.Color=ColorSequence.new({
-			ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
-			ColorSequenceKeypoint.new(1,color),
-		})
-		centerGradient.Transparency=NumberSequence.new({
-			NumberSequenceKeypoint.new(0,0),
-			NumberSequenceKeypoint.new(1,0.18),
-		})
-		centerGradient.Parent=center
+		local dotStroke=Instance.new("UIStroke")
+		dotStroke.Color=Color3.new(1,1,1)
+		dotStroke.Thickness=1
+		dotStroke.Transparency=0.4
+		dotStroke.Parent=dot
 
 		local title=Instance.new("TextLabel")
 		title.BackgroundTransparency=1
 		title.BorderSizePixel=0
 		title.AnchorPoint=Vector2.new(0.5,0.5)
 		title.Position=UDim2.fromScale(0.5,0.5)
-		title.Size=UDim2.new(1,-64,0,42)
+		title.Size=UDim2.new(1,-72,0,40)
 		title.FontFace=Font.new(at.WindUI.Font,Enum.FontWeight.SemiBold)
 		title.Text=titleText
 		title.TextColor3=Color3.new(1,1,1)
 		title.TextTransparency=1
-		title.TextSize=24
+		title.TextSize=22
 		title.RichText=true
 		title.ZIndex=200002
 		title.Parent=boot
@@ -12904,433 +12925,78 @@ function au.PlayBootAnimation(z,A)
 			subtitle.BackgroundTransparency=1
 			subtitle.BorderSizePixel=0
 			subtitle.AnchorPoint=Vector2.new(0.5,0.5)
-			subtitle.Position=UDim2.new(0.5,0,0.5,30)
-			subtitle.Size=UDim2.new(1,-80,0,24)
+			subtitle.Position=UDim2.new(0.5,0,0.5,28)
+			subtitle.Size=UDim2.new(1,-96,0,20)
 			subtitle.FontFace=Font.new(at.WindUI.Font,Enum.FontWeight.Medium)
 			subtitle.Text=subtitleText
 			subtitle.TextColor3=Color3.new(1,1,1)
 			subtitle.TextTransparency=1
-			subtitle.TextSize=14
+			subtitle.TextSize=13
 			subtitle.ZIndex=200002
 			subtitle.Parent=boot
 		end
 
-		local droplets={}
-		local offsets={
-			Vector2.new(-1,-1),
-			Vector2.new(0,-1),
-			Vector2.new(1,-1),
-			Vector2.new(-1,0),
-			Vector2.new(1,0),
-			Vector2.new(-1,1),
-			Vector2.new(0,1),
-			Vector2.new(1,1),
-		}
+		local toast=Instance.new("TextLabel")
+		toast.BackgroundTransparency=1
+		toast.BorderSizePixel=0
+		toast.AnchorPoint=Vector2.new(1,1)
+		toast.Position=UDim2.new(1,-20,1,-20)
+		toast.Size=UDim2.new(0,220,0,34)
+		toast.FontFace=Font.new(at.WindUI.Font,Enum.FontWeight.Medium)
+		toast.Text=tostring(A.SuccessText or "脚本加载成功")
+		toast.TextColor3=Color3.new(1,1,1)
+		toast.TextTransparency=1
+		toast.TextXAlignment=Enum.TextXAlignment.Right
+		toast.TextSize=14
+		toast.ZIndex=200002
+		toast.Parent=boot
 
-		for i,offset in ipairs(offsets) do
-			local drop=Instance.new("Frame")
-			drop.Name="Drop"..i
-			drop.AnchorPoint=Vector2.new(0.5,0.5)
-			drop.Position=UDim2.fromScale(0.5,0.5)
-			drop.Size=UDim2.fromOffset(8,8)
-			drop.BackgroundColor3=color
-			drop.BackgroundTransparency=0.2
-			drop.BorderSizePixel=0
-			drop.ZIndex=200001
-			drop.Parent=boot
-
-			local corner=Instance.new("UICorner")
-			corner.CornerRadius=UDim.new(1,0)
-			corner.Parent=drop
-
-			local grad=Instance.new("UIGradient")
-			grad.Rotation=45
-			grad.Color=ColorSequence.new({
-				ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
-				ColorSequenceKeypoint.new(1,color),
-			})
-			grad.Transparency=NumberSequence.new({
-				NumberSequenceKeypoint.new(0,0),
-				NumberSequenceKeypoint.new(1,0.25),
-			})
-			grad.Parent=drop
-
-			table.insert(droplets,{Object=drop,Offset=offset})
+		local function tween(obj,time,props,style,dir)
+			local t=tweenService:Create(obj,TweenInfo.new(time,style or Enum.EasingStyle.Quint,dir or Enum.EasingDirection.Out),props)
+			t:Play()
+			return t
 		end
 
-		local ripple=Instance.new("Frame")
-		ripple.Name="Ripple"
-		ripple.AnchorPoint=Vector2.new(0.5,0.5)
-		ripple.Position=UDim2.fromScale(0.5,0.5)
-		ripple.Size=UDim2.fromOffset(20,20)
-		ripple.BackgroundTransparency=1
-		ripple.BorderSizePixel=0
-		ripple.ZIndex=200000
-		ripple.Parent=boot
-
-		local rippleStroke=Instance.new("UIStroke")
-		rippleStroke.Color=color
-		rippleStroke.Thickness=1.5
-		rippleStroke.Transparency=0.6
-		rippleStroke.Parent=ripple
-
-		local rippleCorner=Instance.new("UICorner")
-		rippleCorner.CornerRadius=UDim.new(1,0)
-		rippleCorner.Parent=ripple
-
-		dim.BackgroundTransparency=1
-		tweenService:Create(dim,TweenInfo.new(0.18,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{BackgroundTransparency=overlayTransparency}):Play()
+		tween(dim,0.12,{BackgroundTransparency=overlayTransparency})
 		if blur then
-			tweenService:Create(blur,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{Size=blurTarget}):Play()
+			tween(blur,0.12,{Size=blurTarget})
 		end
 
-		task.wait(0.08)
+		tween(dot,0.16,{Size=UDim2.fromOffset(15,15),BackgroundTransparency=0})
+		tween(dotStroke,0.16,{Transparency=0.55})
+		task.wait(duration*0.22)
 
-		tweenService:Create(center,TweenInfo.new(0.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{
-			Size=UDim2.fromOffset(22,22),
-			BackgroundTransparency=0,
-		}):Play()
-
-		tweenService:Create(ripple,TweenInfo.new(0.28,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-			Size=UDim2.fromOffset(72,72),
-		}):Play()
-
-		tweenService:Create(title,TweenInfo.new(0.18,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-			TextTransparency=0.02,
-		}):Play()
-
+		tween(title,0.18,{TextTransparency=0})
 		if subtitle then
-			tweenService:Create(subtitle,TweenInfo.new(0.18,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-				TextTransparency=0.25,
-			}):Play()
+			tween(subtitle,0.18,{TextTransparency=0.18})
 		end
+		tween(toast,0.18,{TextTransparency=0.12})
+		task.wait(duration*0.34)
 
-		task.wait(math.max(0.12,duration*0.18))
-
-		for index,data in ipairs(droplets) do
-			local drop=data.Object
-			local offset=data.Offset
-			local x=0.5 + (offset.X * 0.18)
-			local y=0.5 + (offset.Y * 0.18)
-
-			tweenService:Create(drop,TweenInfo.new(0.45 + (index*0.015),Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-				Position=UDim2.fromScale(x,y),
-				Size=UDim2.fromOffset(32,32),
-				BackgroundTransparency=1,
-			}):Play()
+		tween(title,0.18,{TextTransparency=1})
+		if subtitle then
+			tween(subtitle,0.16,{TextTransparency=1})
 		end
-
-		local maxSide=math.max(screen.AbsoluteSize.X,screen.AbsoluteSize.Y)
-		tweenService:Create(center,TweenInfo.new(math.max(0.35,duration*0.28),Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-			Size=UDim2.fromOffset(maxSide*1.35,maxSide*1.35),
-			BackgroundTransparency=0.05,
-		}):Play()
-		tweenService:Create(ripple,TweenInfo.new(math.max(0.35,duration*0.28),Enum.EasingStyle.Exponential,Enum.EasingDirection.Out),{
-			Size=UDim2.fromOffset(maxSide*1.55,maxSide*1.55),
-		}):Play()
-
-		task.wait(math.max(0.22,duration*0.28))
-
-		tweenService:Create(boot,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-			GroupTransparency=1,
-		}):Play()
+		tween(toast,0.16,{TextTransparency=1})
+		tween(dot,0.16,{Size=UDim2.fromOffset(28,28),BackgroundTransparency=1})
+		tween(dim,0.12,{BackgroundTransparency=1})
 		if blur then
-			tweenService:Create(blur,TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),{
-				Size=0,
-			}):Play()
+			tween(blur,0.12,{Size=0})
 		end
 
-		task.wait(0.25)
+		task.wait(0.14)
 
 		pcall(function()
+			if blur then blur:Destroy() end
 			boot:Destroy()
 		end)
-		if blur then
-			pcall(function()
-				blur:Destroy()
-			end)
-		end
 	end)
 
 	if not ok then
-		warn("[ WindUI BootAnimation ] "..tostring(err))
+		warn("[ WindUI Boot ] "..tostring(err))
 	end
 
-	return ok
-end
-
-
-function au.Open(z)
-task.spawn(function()
-if au.BootAnimation and not au._BootAnimationPlayed then
-	local bootConfig=au.BootAnimation
-	if bootConfig==true then
-		bootConfig={}
-	end
-	if type(bootConfig)=="table" then
-		bootConfig.Title=bootConfig.Title or au.Title
-		bootConfig.ScriptName=bootConfig.ScriptName or au.Title
-		au:PlayBootAnimation(bootConfig)
-	end
-end
-
-if au.OnOpenCallback then
-task.spawn(function()
-al.SafeCallback(au.OnOpenCallback)
-end)
-end
-
-task.wait(0.06)
-au.Closed=false
-
-an(au.UIElements.Main.Background,0.2,{
-ImageTransparency=au.Transparent and at.WindUI.TransparencyValue or 0,
-},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-
-if au.UIElements.BackgroundGradient then
-an(au.UIElements.BackgroundGradient,0.2,{
-ImageTransparency=0,
-},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-end
-
-an(au.UIElements.Main.Background,0.4,{
-Size=UDim2.new(1,0,1,0),
-},Enum.EasingStyle.Exponential,Enum.EasingDirection.Out):Play()
-
-if g then
-if g:IsA"VideoFrame"then
-g.Visible=true
-else
-an(g,0.2,{
-ImageTransparency=au.BackgroundImageTransparency,
-},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-end
-end
-
-if au.OpenButtonMain and au.IsOpenButtonEnabled then
-au.OpenButtonMain:Visible(false)
-end
-
-
-an(
-aA,
-0.25,
-{ImageTransparency=au.ShadowTransparency},
-Enum.EasingStyle.Quint,
-Enum.EasingDirection.Out
-):Play()
-if UIStroke then
-an(UIStroke,0.25,{Transparency=0.8},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-end
-
-task.spawn(function()
-task.wait(0.3)
-an(
-l,
-0.45,
-{Size=UDim2.new(0,au.DragFrameSize,0,4),ImageTransparency=0.8},
-Enum.EasingStyle.Exponential,
-Enum.EasingDirection.Out
-):Play()
-u:Set(true)
-task.wait(0.45)
-if au.Resizable then
-an(
-ax.ImageLabel,
-0.45,
-{ImageTransparency=0.8},
-Enum.EasingStyle.Exponential,
-Enum.EasingDirection.Out
-):Play()
-au.CanResize=true
-end
-end)
-
-au.CanDropdown=true
-au.UIElements.Main.Visible=true
-task.spawn(function()
-task.wait(0.05)
-au.UIElements.Main:WaitForChild"Main".Visible=true
-
-at.WindUI:ToggleAcrylic(true)
-end)
-end)
-end
-function au.Close(z)
-local A={}
-
-if au.OnCloseCallback then
-task.spawn(function()
-al.SafeCallback(au.OnCloseCallback)
-end)
-end
-
-at.WindUI:ToggleAcrylic(false)
-
-if au.UIElements.Main and au.UIElements.Main:WaitForChild"Main"then
-au.UIElements.Main.Main.Visible=false
-end
-
-au.CanDropdown=false
-au.Closed=true
-au._BootAnimationPlayed=false
-
-an(au.UIElements.Main.Background,0.32,{
-ImageTransparency=1,
-},Enum.EasingStyle.Quint,Enum.EasingDirection.InOut):Play()
-if au.UIElements.BackgroundGradient then
-an(au.UIElements.BackgroundGradient,0.32,{
-ImageTransparency=1,
-},Enum.EasingStyle.Quint,Enum.EasingDirection.InOut):Play()
-end
-
-an(au.UIElements.Main.Background,0.4,{
-Size=UDim2.new(1,0,1,-240),
-},Enum.EasingStyle.Exponential,Enum.EasingDirection.InOut):Play()
-
-
-if g then
-if g:IsA"VideoFrame"then
-g.Visible=false
-else
-an(g,0.3,{
-ImageTransparency=1,
-},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-end
-end
-an(aA,0.25,{ImageTransparency=1},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-if UIStroke then
-an(UIStroke,0.25,{Transparency=1},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-end
-
-an(
-l,
-0.3,
-{Size=UDim2.new(0,0,0,4),ImageTransparency=1},
-Enum.EasingStyle.Exponential,
-Enum.EasingDirection.InOut
-):Play()
-an(
-ax.ImageLabel,
-0.3,
-{ImageTransparency=1},
-Enum.EasingStyle.Exponential,
-Enum.EasingDirection.Out
-):Play()
-u:Set(false)
-au.CanResize=false
-
-task.spawn(function()
-task.wait(0.4)
-au.UIElements.Main.Visible=false
-
-if au.OpenButtonMain and not au.Destroyed and not au.IsPC and au.IsOpenButtonEnabled then
-au.OpenButtonMain:Visible(true)
-end
-end)
-
-function A.Destroy(B)
-task.spawn(function()
-if au.OnDestroyCallback then
-task.spawn(function()
-al.SafeCallback(au.OnDestroyCallback)
-end)
-end
-if au.AcrylicPaint and au.AcrylicPaint.Model then
-au.AcrylicPaint.Model:Destroy()
-end
-au.Destroyed=true
-task.wait(0.4)
-at.WindUI.ScreenGui:Destroy()
-at.WindUI.NotificationGui:Destroy()
-at.WindUI.DropdownGui:Destroy()
-at.WindUI.TooltipGui:Destroy()
-
-al.DisconnectAll()
-
-return
-end)
-end
-
-return A
-end
-function au.Destroy(z)
-return au:Close():Destroy()
-end
-function au.Toggle(z)
-if au.Closed then
-au:Open()
-else
-au:Close()
-end
-end
-
-function au.ToggleTransparency(z,A)
-
-au.Transparent=A
-at.WindUI.Transparent=A
-
-au.UIElements.Main.Background.ImageTransparency=A and at.WindUI.TransparencyValue or 0
-
-
-end
-
-function au.LockAll(z)
-for A,B in next,au.AllElements do
-if B.Lock then
-B:Lock()
-end
-end
-end
-function au.UnlockAll(z)
-for A,B in next,au.AllElements do
-if B.Unlock then
-B:Unlock()
-end
-end
-end
-function au.GetLocked(z)
-local A={}
-
-for B,C in next,au.AllElements do
-if C.Locked then
-table.insert(A,C)
-end
-end
-
-return A
-end
-function au.GetUnlocked(z)
-local A={}
-
-for B,C in next,au.AllElements do
-if C.Locked==false then
-table.insert(A,C)
-end
-end
-
-return A
-end
-
-function au.GetUIScale(z,A)
-return at.WindUI.UIScale
-end
-
-function au.SetUIScale(z,A)
-at.WindUI.UIScale=A
-an(at.WindUI.UIScaleObj,0.2,{Scale=A},Enum.EasingStyle.Quint,Enum.EasingDirection.Out):Play()
-return au
-end
-
-function au.SetToTheCenter(z)
-an(
-au.UIElements.Main,
-0.45,
-{Position=UDim2.new(0.5,0,0.5,0)},
-Enum.EasingStyle.Quint,
-Enum.EasingDirection.Out
-):Play()
-return au
+	return ok,err
 end
 
 function au.SetCurrentConfig(z,A)
@@ -14225,37 +13891,56 @@ function aa.SetBackgroundImage(spec,options)
 	options=options or {}
 
 	local candidates=aa._ResolveBackgroundCandidates(spec)
-	if #candidates==0 or not aa.ScreenGui then
+	if #candidates==0 then
+		return nil
+	end
+
+	local target=options.Target
+	if not target then
+		local window=aa.Window
+		if window and window.UIElements and window.UIElements.Main and window.UIElements.Main:FindFirstChild("Background") then
+			target=window.UIElements.Main.Background
+		elseif window and window.UIElements and window.UIElements.Main then
+			target=window.UIElements.Main
+		elseif aa.ScreenGui then
+			target=aa.ScreenGui
+		end
+	end
+
+	if not target then
 		return nil
 	end
 
 	aa.ClearBackgroundImage()
 
-	local parent=aa.ScreenGui
 	local state=aa._BackgroundState
 	local targetTransparency=tonumber(options.Transparency or options.ImageTransparency or 0) or 0
 	local blurAmount=tonumber(options.BlurSize or options.Blur or 0) or 0
-	local preloadTimeout=tonumber(options.Timeout or options.PreloadTimeout or 2.5) or 2.5
+	local scaleType=Enum.ScaleType.Crop
+
+	if options.Fit==true then
+		scaleType=Enum.ScaleType.Fit
+	elseif options.Stretch==true then
+		scaleType=Enum.ScaleType.Stretch
+	end
 
 	local bg=Instance.new("ImageLabel")
 	bg.Name="WindUI_Background"
 	bg.BackgroundTransparency=1
 	bg.BorderSizePixel=0
-	bg.Size=UDim2.new(1,0,1,0)
-	bg.Position=UDim2.new(0,0,0,0)
+	bg.Size=UDim2.fromScale(1,1)
+	bg.Position=UDim2.fromScale(0,0)
 	bg.Image=""
-	bg.ScaleType=Enum.ScaleType.Crop
+	bg.ScaleType=scaleType
 	bg.ImageTransparency=1
-	bg.ZIndex=options.ZIndex or -100000
+	local baseZ=0
+	if target and target:IsA("GuiObject") then
+		baseZ=target.ZIndex or 0
+	end
+	bg.ZIndex=options.ZIndex or (baseZ-5)
 	bg.Active=false
 	bg.Selectable=false
-	bg.Parent=parent
-
-	if options.Fit==true then
-		bg.ScaleType=Enum.ScaleType.Fit
-	elseif options.Stretch==true then
-		bg.ScaleType=Enum.ScaleType.Stretch
-	end
+	bg.Parent=target
 
 	local overlayTransparency=options.OverlayTransparency
 	if overlayTransparency~=nil then
@@ -14264,11 +13949,11 @@ function aa.SetBackgroundImage(spec,options)
 		overlay.BackgroundColor3=options.OverlayColor3 or Color3.new(0,0,0)
 		overlay.BackgroundTransparency=math.clamp(overlayTransparency,0,1)
 		overlay.BorderSizePixel=0
-		overlay.Size=UDim2.new(1,0,1,0)
-		overlay.Position=UDim2.new(0,0,0,0)
-		overlay.ZIndex=(bg.ZIndex or 0)+1
+		overlay.Size=UDim2.fromScale(1,1)
+		overlay.Position=UDim2.fromScale(0,0)
+		overlay.ZIndex=bg.ZIndex+1
 		overlay.Active=false
-		overlay.Parent=parent
+		overlay.Parent=target
 		state.Overlay=overlay
 	end
 
@@ -14282,7 +13967,6 @@ function aa.SetBackgroundImage(spec,options)
 		end)
 
 		local chosen=nil
-
 		for _,candidate in ipairs(candidates) do
 			if not bg.Parent then
 				return
@@ -14299,16 +13983,13 @@ function aa.SetBackgroundImage(spec,options)
 				chosen=candidate
 				break
 			end
-
-			if not chosen then
-				chosen=candidate
-			end
 		end
 
 		if not bg.Parent then
 			return
 		end
 
+		chosen=chosen or candidates[1]
 		if chosen then
 			bg.Image=chosen
 			state.Source=chosen
@@ -14322,7 +14003,7 @@ function aa.SetBackgroundImage(spec,options)
 				pcall(function()
 					tweenService:Create(
 						bg,
-						TweenInfo.new(0.25,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),
+						TweenInfo.new(0.22,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),
 						{ImageTransparency=math.clamp(targetTransparency,0,1)}
 					):Play()
 				end)
@@ -14349,7 +14030,7 @@ function aa.SetBackgroundImage(spec,options)
 				pcall(function()
 					tweenService:Create(
 						blurEffect,
-						TweenInfo.new(0.3,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),
+						TweenInfo.new(0.25,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),
 						{Size=math.clamp(blurAmount,0,56)}
 					):Play()
 				end)
@@ -14543,6 +14224,7 @@ aw.Parent=aa.ScreenGui.Window
 			aa.SetBackgroundImage(
 				aw.BackgroundImage or aw.BackgroundImages or aw.BackgroundImageId,
 				{
+					Target=au.UIElements and au.UIElements.Main and au.UIElements.Main:FindFirstChild("Background") or nil,
 					Transparency=aw.BackgroundImageTransparency,
 					ImageTransparency=aw.BackgroundImageTransparency,
 					OverlayTransparency=aw.BackgroundOverlayTransparency,
